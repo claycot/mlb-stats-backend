@@ -88,21 +88,22 @@ router.get("/list/:season_year", (req: Request, res: Response, next: NextFunctio
 router.get("/list/:season_year/points", (req: Request, res: Response, next: NextFunction) => {
     // TODO: replace this with a query string
     const pointSystem = {
-        "inningsPitched": 0.99,
-        "earnedRuns": -1,
-        "baseOnBalls": -0.5,
+        "inningsPitched": 3,
+        "hits": -1,
+        "earnedRuns": -2,
+        "baseOnBalls": -1,
         "strikeOuts": 1,
-        "pickoffs": 1,
-        "qualityStarts": 3,
-        "completeGames": 10,
-        "noHitters": 10,
-        "perfectGames": 10,
-        "wins": 8,
-        "losses": -4,
-        "saveOpportunities": 2,
-        "saves": 3,
-        "blownSaves": -2,
-        "holds": 1
+        // "pickoffs": 1,
+        // "qualityStarts": 3,
+        // "completeGames": 10,
+        // "noHitters": 10,
+        // "perfectGames": 10,
+        "wins": 2,
+        "losses": -2,
+        // "saveOpportunities": 2,
+        "saves": 5,
+        // "blownSaves": -2,
+        "holds": 2
     };
 
     // fetch all pitchers in a given season
@@ -132,24 +133,6 @@ router.get("/list/:season_year/points", (req: Request, res: Response, next: Next
             });
         });
     res.json(playersPointsArr.sort((a, b) => { return b.points - a.points }));
-    // getAPIResponse(apiString)
-    //     .then((players) => {
-    //         players.forEach((player) => {
-    //             playersObj[player.player.id] = player;
-    //         });
-    //         fs.writeFile(path.join(__dirname, "..", "cache", "data", `hitter-data-${req.params.season_year}.json`),
-    //             JSON.stringify(playersObj),
-    //             {
-    //                 flag: "w"
-    //             },
-    //             () => {
-    //                 res.json(playersObj);
-    //             }
-    //         );
-    //     })
-    //     .catch((err) => {
-    //         next(err);
-    //     });
 });
 
 // list information about a given pitcher in a given season
