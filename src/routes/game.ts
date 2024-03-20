@@ -1,0 +1,163 @@
+import { mlbApi } from "../constants/constants";
+import express, { NextFunction, Request, Response } from "express";
+import axios from "axios";
+const router = express.Router();
+
+// list status of today's games
+router.get("/list", (req: Request, res: Response, next: NextFunction) => {
+    // make a string of the current date in the format MM/DD/YYYY
+    const today_date = new Date().toLocaleDateString("en-US");
+    // fetch today's games
+    let apiString = `${mlbApi.url}/api/v1/schedule/?sportId=1&date=${today_date}`;
+
+    axios.get(apiString)
+        // the query will return a list of today's games
+        .then((response) => {
+            // return a promise to get the individual information of each game today
+            return Promise.all(response.data.dates[0].games.map(game => {
+                return axios.get(`${mlbApi.url}${game.link}`);
+            }));
+        })
+        // after all of the games have responded, get information on relevant players
+        .then((gameResponses) => {
+            let playersToQuery: any = [];
+            gameResponses.forEach(gameResponse => {
+                const game = gameResponse.data;
+                // if the game is scheduled, fetch information on...
+                if (game.gameData.status.abstractGameState === "Preview") {
+                    // 1. probable pitchers
+                    playersToQuery.push(game.gameData.probablePitchers.away.link);
+                    playersToQuery.push(game.gameData.probablePitchers.home.link);
+                }
+
+                // if the game is live, fetch information on...
+                else if (game.gameData.status.abstractGameState === "Live") {
+                    // 1. current pitchers
+                    playersToQuery.push(game.liveData.linescore.offense.pitcher.link);
+                    playersToQuery.push(game.liveData.linescore.defense.pitcher.link);
+                    // 2. current runners
+                    const bases = {
+                        "first": false,
+                        "second": false,
+                        "third": false
+                    };
+                    Object.keys(bases).forEach(baseName => {
+                        if (game.liveData.linescore.offense.hasOwnProperty(baseName)) {
+                            playersToQuery.push(game.liveData.linescore.offense[baseName].link);
+                        }
+                    });
+
+                }
+
+                // if the game is final, fetch information on...
+                else if (game.gameData.status.abstractGameState === "Final") {
+                    // 1. winning/losing pitcher
+                    playersToQuery.push(game.liveData.decisions.winner.link);
+                    playersToQuery.push(game.liveData.decisions.loser.link);
+                }
+            });
+
+            // return a promise to get the individual information of each game today
+            return Promise.all([
+                Promise.resolve(gameResponses),
+                Promise.all(playersToQuery.map(playerLink => {
+                    return axios.get(`${mlbApi.url}${playerLink}`);
+                }))
+            ]);
+        })
+        // build objects with their information
+        .then(([gameResponses, playerResponses]) => {
+            let playerInfo = {};
+            playerResponses.forEach(playerResponse => {
+                const player = playerResponse.data.people[0];
+                playerInfo[player.id] = player.primaryNumber;
+            });
+
+            res.json(gameResponses.map(gameResponse => {
+                const game = gameResponse.data;
+                // for every game, fetch information on...
+                const gameObj = {
+                    // 1. game state
+                    // 2. start time
+                    "state": {
+                        "status": {
+                            "general": game.gameData.status.abstractGameState,
+                            "detailed": game.gameData.status.detailedState,
+                            "start_time": `${game.gameData.datetime.time} ${game.gameData.datetime.ampm}`,
+                            // "end_time": game.gameData.status.detailedState === "Final" ?  : null;
+                        }
+                    },
+                    // 3. team names and league
+                    "teams": {
+                        "away": {
+                            "info": {
+                                "name": game.gameData.teams.away.name,
+                                "abbreviation": game.gameData.teams.away.abbreviation,
+                                "league": game.gameData.teams.away.league.name
+                            }
+                        },
+                        "home": {
+                            "info": {
+                                "name": game.gameData.teams.home.name,
+                                "abbreviation": game.gameData.teams.home.abbreviation,
+                                "league": game.gameData.teams.home.league.name
+                            }
+                        }
+                    }
+                };
+
+                // if the game is scheduled, fetch information on...
+                if (gameObj.state.status.general === "Preview") {
+                    // 1. probable pitchers
+                    gameObj.teams.away["pitcher"] = playerInfo[game.gameData.probablePitchers.away.id];
+                    gameObj.teams.home["pitcher"] = playerInfo[game.gameData.probablePitchers.home.id];
+                }
+
+                // if the game is live, fetch information on...
+                else if (gameObj.state.status.general === "Live") {
+                    // 1. current inning
+                    gameObj.state["inning"] = {
+                        "number": game.liveData.linescore.currentInning,
+                        "top_bottom": game.liveData.linescore.inningHalf,
+                    };
+                    // 2. current pitchers
+                    gameObj.teams.away["pitcher"] = game.liveData.linescore.isTopInning ? playerInfo[game.liveData.linescore.offense.pitcher.id] : playerInfo[game.liveData.linescore.defense.pitcher.id];
+                    gameObj.teams.home["pitcher"] = game.liveData.linescore.isTopInning ? playerInfo[game.liveData.linescore.defense.pitcher.id] : playerInfo[game.liveData.linescore.offense.pitcher.id];
+                    // 3. current runners
+                    gameObj.state["diamond"] = {
+                        "first": false,
+                        "second": false,
+                        "third": false
+                    };
+                    Object.keys(gameObj.state["diamond"]).forEach(baseName => {
+                        if (game.liveData.linescore.offense.hasOwnProperty(baseName)) {
+                            gameObj.state["diamond"][baseName] = playerInfo[game.liveData.linescore.offense[baseName].id];
+                        }
+                    });
+                    // 4. current outs
+                    gameObj.state["outs"] = game.liveData.linescore.outs;
+                    // 5. current score
+                    gameObj.teams.away["score"] = game.liveData.linescore.teams.away.runs;
+                    gameObj.teams.home["score"] = game.liveData.linescore.teams.home.runs;
+
+                }
+
+                // if the game is final, fetch information on...
+                else if (gameObj.state.status.general === "Final") {
+                    // 1. final score
+                    gameObj.teams.away["score"] = game.liveData.linescore.teams.away.runs;
+                    gameObj.teams.home["score"] = game.liveData.linescore.teams.home.runs;
+                    // 2. winning/losing pitcher
+                    gameObj.teams.away["pitcher"] = gameObj.teams.away["score"] > gameObj.teams.home["score"] ? playerInfo[game.liveData.decisions.winner.id] : playerInfo[game.liveData.decisions.loser.id];
+                    gameObj.teams.home["pitcher"] = gameObj.teams.home["score"] > gameObj.teams.away["score"] ? playerInfo[game.liveData.decisions.winner.id] : playerInfo[game.liveData.decisions.loser.id];
+                }
+
+                return gameObj;
+            }));
+        })
+        .catch((err) => {
+            next(err);
+        });
+});
+
+export default router;

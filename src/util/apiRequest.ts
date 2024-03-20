@@ -1,7 +1,7 @@
 import axios from "axios";
 import { response } from "express";
 
-export function getAPIResponse(requestUrl: string) {
+export function getPlayerAPIResponse(requestUrl: string) {
     let responseSplits: any = [];
 
     return axios

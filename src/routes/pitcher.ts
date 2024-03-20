@@ -3,7 +3,7 @@ import express, { NextFunction, Request, Response } from "express";
 import axios from "axios";
 import fs from "fs";
 import path from "path";
-import { getAPIResponse } from "../util/apiRequest";
+import { getPlayerAPIResponse } from "../util/apiRequest";
 import { customRound } from "../util/math";
 const router = express.Router();
 
@@ -12,7 +12,7 @@ router.get("/list/:season_year", (req: Request, res: Response, next: NextFunctio
     // fetch all pitchers in a given season
     let apiString = `${mlbApi.url}/api/v1/stats?stats=season&playerPool=all&group=pitching&season=${req.params.season_year}&limit=1000`;
     let playersObj = {};
-    getAPIResponse(apiString)
+    getPlayerAPIResponse(apiString)
         .then((players) => {
             let playersPromises = players
                 // for each player, create derived stats of 0, and for anyone who started at least 1 game, promise to find their QS, NH, PG totals
@@ -91,19 +91,19 @@ router.get("/list/:season_year/points", (req: Request, res: Response, next: Next
         "inningsPitched": 3,
         "hits": -1,
         "earnedRuns": -2,
-        "baseOnBalls": -1,
+        "baseOnBalls": -0.5,
         "strikeOuts": 1,
-        // "pickoffs": 1,
-        // "qualityStarts": 3,
-        // "completeGames": 10,
-        // "noHitters": 10,
-        // "perfectGames": 10,
-        "wins": 2,
-        "losses": -2,
-        // "saveOpportunities": 2,
+        "pickoffs": 1,
+        "qualityStarts": 3,
+        "completeGames": 10,
+        "noHitters": 10,
+        "perfectGames": 10,
+        "wins": 8,
+        "losses": -4,
+        "saveOpportunities": 2,
         "saves": 5,
-        // "blownSaves": -2,
-        "holds": 2
+        "blownSaves": -2,
+        "holds": 1
     };
 
     // fetch all pitchers in a given season
@@ -129,6 +129,7 @@ router.get("/list/:season_year/points", (req: Request, res: Response, next: Next
             playersPointsArr.push({
                 "name": playersJSON[playerID].player.fullName,
                 "team": playersJSON[playerID].team.name,
+                // "relief_appearances": playersJSON[playerID].stat.gamesPlayed - playersJSON[playerID].stat.gamesStarted,
                 "points": customRound(points, 2)
             });
         });
@@ -138,7 +139,7 @@ router.get("/list/:season_year/points", (req: Request, res: Response, next: Next
 // list information about a given pitcher in a given season
 router.get("/player", (req: Request, res: Response, next: NextFunction) => {
     let apiString = `${mlbApi.url}/api/v1/people?personIds=605151,592450&hydrate=stats(group=[pitching],type=[gameLog],sitCodes=[sp],season=2023)&fields=people,id,fullName,stats,splits,stat,inningsPitched,earnedRuns`;
-    getAPIResponse(apiString)
+    getPlayerAPIResponse(apiString)
         .then((splits) => {
             res.json(splits);
         })
