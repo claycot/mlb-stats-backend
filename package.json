@@ -6,8 +6,7 @@
   "scripts": {
     "build": "npx tsc",
     "start": "ts-node src/app.ts",
-    "dev": "nodemon src/app.ts",
-    "vercel-build": "echo Vercel Building"
+    "dev": "nodemon src/app.ts"
   },
   "author": "",
   "license": "ISC",
