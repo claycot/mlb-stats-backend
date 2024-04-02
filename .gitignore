@@ -1,5 +1,5 @@
 .env
 .prettierrc.json
 node_modules
-public
+dist
 src/cache

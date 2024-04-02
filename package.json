@@ -2,11 +2,11 @@
   "name": "mlb-stats-backend",
   "version": "1.0.0",
   "description": "",
-  "main": "src/index.ts",
+  "main": "src/app.ts",
   "scripts": {
     "build": "npx tsc",
-    "start": "ts-node src/index.ts",
-    "dev": "nodemon src/index.ts"
+    "start": "ts-node src/app.ts",
+    "dev": "nodemon src/app.ts"
   },
   "author": "",
   "license": "ISC",
