@@ -3,7 +3,7 @@ import express, { NextFunction, Request, Response } from "express";
 // import axios from "axios";
 import fs from "fs";
 import path from "path";
-import { getAPIResponse } from "../util/apiRequest";
+import { getPlayerAPIResponse } from "../util/apiRequest";
 import { customRound } from "../util/math";
 const router = express.Router();
 
@@ -12,7 +12,7 @@ router.get("/list/:season_year", (req: Request, res: Response, next: NextFunctio
     // fetch all hitters in a given season
     let apiString = `${mlbApi.url}/api/v1/stats?stats=season&playerPool=all&group=hitting&season=${req.params.season_year}&limit=1000`;
     let playersObj = {};
-    getAPIResponse(apiString)
+    getPlayerAPIResponse(apiString)
         .then((players) => {
             players.forEach((player) => {
                 player.stat["singles"] = player.stat["hits"] - player.stat["doubles"] - player.stat["triples"] - player.stat["homeRuns"];
@@ -80,7 +80,7 @@ router.get("/list/:season_year/points", (req: Request, res: Response, next: Next
 // list information about a given hitter in a given season
 router.get("/player", (req: Request, res: Response, next: NextFunction) => {
     let apiString = `${mlbApi.url}/api/v1/people?personIds=605151,592450&hydrate=stats(group=[pitching],type=[gameLog],sitCodes=[sp],season=2023)&fields=people,id,fullName,stats,splits,stat,inningsPitched,earnedRuns`;
-    getAPIResponse(apiString)
+    getPlayerAPIResponse(apiString)
         .then((splits) => {
             res.json(splits);
         })
