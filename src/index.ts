@@ -11,7 +11,7 @@ app.get("/ping", (req, res, next) => {
   res.json("Pong!");
 });
 
-import { router as apiRouter } from "./routes";
+import { router as apiRouter } from "./api";
 app.use("/api", apiRouter);
 
 app.use((req, res, next) => {
