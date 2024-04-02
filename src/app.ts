@@ -7,6 +7,10 @@ const port = process.env.PORT;
 
 app.use(morgan('dev'));
 
+app.get("/ping", (req, res, next) => {
+  res.json("Pong!");
+});
+
 import { router as apiRouter } from "./routes";
 app.use("/api", apiRouter);
 

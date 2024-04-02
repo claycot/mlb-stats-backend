@@ -26,8 +26,12 @@ router.get("/list", (req: Request, res: Response, next: NextFunction) => {
                 // if the game is scheduled, fetch information on...
                 if (game.gameData.status.abstractGameState === "Preview") {
                     // 1. probable pitchers
-                    playersToQuery.push(game.gameData.probablePitchers.away.link);
-                    playersToQuery.push(game.gameData.probablePitchers.home.link);
+                    if (game.gameData.probablePitchers.hasOwnProperty("away")) {
+                        playersToQuery.push(game.gameData.probablePitchers.away.link);
+                    }
+                    if (game.gameData.probablePitchers.hasOwnProperty("home")) {
+                        playersToQuery.push(game.gameData.probablePitchers.home.link);
+                    }
                 }
 
                 // if the game is live, fetch information on...
@@ -67,93 +71,131 @@ router.get("/list", (req: Request, res: Response, next: NextFunction) => {
         })
         // build objects with their information
         .then(([gameResponses, playerResponses]) => {
-            let playerInfo = {};
+            let playerInfo = {
+                "-1": { "name": "TBD", "number": -1 }
+            };
             playerResponses.forEach(playerResponse => {
                 const player = playerResponse.data.people[0];
-                playerInfo[player.id] = player.primaryNumber;
+                playerInfo[player.id] = { "name": player.fullName, "number": player.primaryNumber };
             });
 
-            res.json(gameResponses.map(gameResponse => {
-                const game = gameResponse.data;
-                // for every game, fetch information on...
-                const gameObj = {
-                    // 1. game state
-                    // 2. start time
-                    "state": {
-                        "status": {
-                            "general": game.gameData.status.abstractGameState,
-                            "detailed": game.gameData.status.detailedState,
-                            "start_time": `${game.gameData.datetime.time} ${game.gameData.datetime.ampm}`,
-                            // "end_time": game.gameData.status.detailedState === "Final" ?  : null;
-                        }
-                    },
-                    // 3. team names and league
-                    "teams": {
-                        "away": {
-                            "info": {
-                                "name": game.gameData.teams.away.name,
-                                "abbreviation": game.gameData.teams.away.abbreviation,
-                                "league": game.gameData.teams.away.league.name
+            res.json(gameResponses
+                .map(gameResponse => {
+                    const game = gameResponse.data;
+                    // for every game, fetch information on...
+                    const gameObj = {
+                        // 1. game state
+                        // 2. start time
+                        "state": {
+                            "status": {
+                                "general": game.gameData.status.abstractGameState,
+                                "detailed": game.gameData.status.detailedState,
+                                "start_time": {
+                                    "display": `${game.gameData.datetime.time} ${game.gameData.datetime.ampm}`,
+                                    ...game.gameData.datetime
+                                }
                             }
                         },
-                        "home": {
-                            "info": {
-                                "name": game.gameData.teams.home.name,
-                                "abbreviation": game.gameData.teams.home.abbreviation,
-                                "league": game.gameData.teams.home.league.name
+                        // 3. team names and league
+                        "teams": {
+                            "away": {
+                                "info": {
+                                    "name": game.gameData.teams.away.name,
+                                    "abbreviation": game.gameData.teams.away.abbreviation,
+                                    "league": game.gameData.teams.away.league.name
+                                }
+                            },
+                            "home": {
+                                "info": {
+                                    "name": game.gameData.teams.home.name,
+                                    "abbreviation": game.gameData.teams.home.abbreviation,
+                                    "league": game.gameData.teams.home.league.name
+                                }
                             }
                         }
+                    };
+
+                    // if the game is scheduled, fetch information on...
+                    if (gameObj.state.status.general === "Preview") {
+                        // 1. probable pitchers
+                        gameObj.teams.away["pitcher"] = playerInfo[game.gameData.probablePitchers.hasOwnProperty("away") ? game.gameData.probablePitchers.away.id : -1];
+                        gameObj.teams.home["pitcher"] = playerInfo[game.gameData.probablePitchers.hasOwnProperty("home") ? game.gameData.probablePitchers.home.id : -1];
                     }
-                };
 
-                // if the game is scheduled, fetch information on...
-                if (gameObj.state.status.general === "Preview") {
-                    // 1. probable pitchers
-                    gameObj.teams.away["pitcher"] = playerInfo[game.gameData.probablePitchers.away.id];
-                    gameObj.teams.home["pitcher"] = playerInfo[game.gameData.probablePitchers.home.id];
-                }
+                    // if the game is live, fetch information on...
+                    else if (gameObj.state.status.general === "Live") {
+                        // 1. current inning
+                        gameObj.state["inning"] = {
+                            "number": game.liveData.linescore.currentInning,
+                            "top_bottom": game.liveData.linescore.inningHalf,
+                        };
+                        // 2. current pitchers
+                        gameObj.teams.away["pitcher"] = game.liveData.linescore.isTopInning ? playerInfo[game.liveData.linescore.offense.pitcher.id] : playerInfo[game.liveData.linescore.defense.pitcher.id];
+                        gameObj.teams.home["pitcher"] = game.liveData.linescore.isTopInning ? playerInfo[game.liveData.linescore.defense.pitcher.id] : playerInfo[game.liveData.linescore.offense.pitcher.id];
+                        // 3. current runners
+                        gameObj.state["diamond"] = {
+                            "first": false,
+                            "second": false,
+                            "third": false
+                        };
+                        Object.keys(gameObj.state["diamond"]).forEach(baseName => {
+                            if (game.liveData.linescore.offense.hasOwnProperty(baseName)) {
+                                gameObj.state["diamond"][baseName] = playerInfo[game.liveData.linescore.offense[baseName].id];
+                            }
+                        });
+                        // 4. current outs
+                        gameObj.state["outs"] = game.liveData.linescore.outs;
+                        // 5. current score
+                        gameObj.teams.away["score"] = game.liveData.linescore.teams.away.runs;
+                        gameObj.teams.home["score"] = game.liveData.linescore.teams.home.runs;
 
-                // if the game is live, fetch information on...
-                else if (gameObj.state.status.general === "Live") {
-                    // 1. current inning
-                    gameObj.state["inning"] = {
-                        "number": game.liveData.linescore.currentInning,
-                        "top_bottom": game.liveData.linescore.inningHalf,
+                    }
+
+                    // if the game is final, fetch information on...
+                    else if (gameObj.state.status.general === "Final") {
+                        // 1. final score
+                        gameObj.teams.away["score"] = game.liveData.linescore.teams.away.runs;
+                        gameObj.teams.home["score"] = game.liveData.linescore.teams.home.runs;
+                        // 2. winning/losing pitcher
+                        gameObj.teams.away["pitcher"] = gameObj.teams.away["score"] > gameObj.teams.home["score"] ? playerInfo[game.liveData.decisions.winner.id] : playerInfo[game.liveData.decisions.loser.id];
+                        gameObj.teams.home["pitcher"] = gameObj.teams.home["score"] > gameObj.teams.away["score"] ? playerInfo[game.liveData.decisions.winner.id] : playerInfo[game.liveData.decisions.loser.id];
+                    }
+
+                    return gameObj;
+                })
+                .sort((a: any, b: any) => {
+                    // Sorting by status
+                    const statusOrder = {
+                        "Live": 0,
+                        "Final": 1,
+                        "Preview": 2
                     };
-                    // 2. current pitchers
-                    gameObj.teams.away["pitcher"] = game.liveData.linescore.isTopInning ? playerInfo[game.liveData.linescore.offense.pitcher.id] : playerInfo[game.liveData.linescore.defense.pitcher.id];
-                    gameObj.teams.home["pitcher"] = game.liveData.linescore.isTopInning ? playerInfo[game.liveData.linescore.defense.pitcher.id] : playerInfo[game.liveData.linescore.offense.pitcher.id];
-                    // 3. current runners
-                    gameObj.state["diamond"] = {
-                        "first": false,
-                        "second": false,
-                        "third": false
-                    };
-                    Object.keys(gameObj.state["diamond"]).forEach(baseName => {
-                        if (game.liveData.linescore.offense.hasOwnProperty(baseName)) {
-                            gameObj.state["diamond"][baseName] = playerInfo[game.liveData.linescore.offense[baseName].id];
-                        }
-                    });
-                    // 4. current outs
-                    gameObj.state["outs"] = game.liveData.linescore.outs;
-                    // 5. current score
-                    gameObj.teams.away["score"] = game.liveData.linescore.teams.away.runs;
-                    gameObj.teams.home["score"] = game.liveData.linescore.teams.home.runs;
+                    const statusComparison = statusOrder[a.state.status.general] - statusOrder[b.state.status.general];
+                    if (statusComparison !== 0) {
+                        return statusComparison;
+                    }
 
-                }
+                    // For "Live" games, sort by inning (largest inning first)
+                    if (a.state.status.general === "Live") {
+                        return b.state.inning.number - a.state.inning.number;
+                    }
 
-                // if the game is final, fetch information on...
-                else if (gameObj.state.status.general === "Final") {
-                    // 1. final score
-                    gameObj.teams.away["score"] = game.liveData.linescore.teams.away.runs;
-                    gameObj.teams.home["score"] = game.liveData.linescore.teams.home.runs;
-                    // 2. winning/losing pitcher
-                    gameObj.teams.away["pitcher"] = gameObj.teams.away["score"] > gameObj.teams.home["score"] ? playerInfo[game.liveData.decisions.winner.id] : playerInfo[game.liveData.decisions.loser.id];
-                    gameObj.teams.home["pitcher"] = gameObj.teams.home["score"] > gameObj.teams.away["score"] ? playerInfo[game.liveData.decisions.winner.id] : playerInfo[game.liveData.decisions.loser.id];
-                }
+                    const gameAStart = a.state.status.start_time.dateTime;
+                    const gameBStart = b.state.status.start_time.dateTime;
 
-                return gameObj;
-            }));
+                    // For "Final" games, sort by start time (earliest time first)
+                    if (a.state.status.general === "Final") {
+                        return gameAStart - gameBStart;
+                    }
+
+                    // For "Preview" games, sort by start time (earliest time first)
+                    if (a.state.status.general === "Preview") {
+                        return gameAStart - gameBStart;
+                    }
+
+                    return 0;
+                })
+            );
         })
         .catch((err) => {
             next(err);
