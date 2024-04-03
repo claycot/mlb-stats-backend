@@ -56,8 +56,10 @@ router.get("/list", (req: Request, res: Response, next: NextFunction) => {
                 // if the game is final, fetch information on...
                 else if (game.gameData.status.abstractGameState === "Final") {
                     // 1. winning/losing pitcher
-                    playersToQuery.push(game.liveData.decisions.winner.link);
-                    playersToQuery.push(game.liveData.decisions.loser.link);
+                    if (game.liveData.hasOwnProperty("decisions")) {
+                        playersToQuery.push(game.liveData.decisions.winner.link);
+                        playersToQuery.push(game.liveData.decisions.loser.link);
+                    }
                 }
             });
 
@@ -157,8 +159,10 @@ router.get("/list", (req: Request, res: Response, next: NextFunction) => {
                         gameObj.teams.away["score"] = game.liveData.linescore.teams.away.runs;
                         gameObj.teams.home["score"] = game.liveData.linescore.teams.home.runs;
                         // 2. winning/losing pitcher
-                        gameObj.teams.away["pitcher"] = gameObj.teams.away["score"] > gameObj.teams.home["score"] ? playerInfo[game.liveData.decisions.winner.id] : playerInfo[game.liveData.decisions.loser.id];
-                        gameObj.teams.home["pitcher"] = gameObj.teams.home["score"] > gameObj.teams.away["score"] ? playerInfo[game.liveData.decisions.winner.id] : playerInfo[game.liveData.decisions.loser.id];
+                        if (game.liveData.hasOwnProperty("decisions")) {
+                            gameObj.teams.away["pitcher"] = gameObj.teams.away["score"] > gameObj.teams.home["score"] ? playerInfo[game.liveData.decisions.winner.id] : playerInfo[game.liveData.decisions.loser.id];
+                            gameObj.teams.home["pitcher"] = gameObj.teams.home["score"] > gameObj.teams.away["score"] ? playerInfo[game.liveData.decisions.winner.id] : playerInfo[game.liveData.decisions.loser.id];
+                        }
                     }
 
                     return gameObj;
