@@ -160,15 +160,16 @@ router.get("/list", (req: Request, res: Response, next: NextFunction) => {
                         };
                         Object.keys(gameObj.state["diamond"]).forEach(baseName => {
                             if (game.liveData.linescore.offense.hasOwnProperty(baseName)) {
+                                // assign the current baserunner
+                                gameObj.state["diamond"][baseName] = playerInfo[game.liveData.linescore.offense[baseName].id];
+                                
                                 // add a check for batter because the API will say 
                                 // 1. they're batting and also on base
                                 // 2. if there are 3 outs, the team is still at bat but the other team's batter is up
                                 if ((gameObj.state["diamond"].batter && gameObj.state["diamond"].batter.id === game.liveData.linescore.offense[baseName].id)
-                                || game.liveData.linescore.outs === 3) {
+                                    || game.liveData.linescore.outs === 3) {
                                     gameObj.state["diamond"].batter = false;
                                 }
-
-                                gameObj.state["diamond"][baseName] = playerInfo[game.liveData.linescore.offense[baseName].id];
                             }
                         });
                         // 4. current outs
