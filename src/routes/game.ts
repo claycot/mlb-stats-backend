@@ -101,7 +101,8 @@ router.get("/list", (req: Request, res: Response, next: NextFunction) => {
                                 "general": game.gameData.status.abstractGameState,
                                 "detailed": game.gameData.status.detailedState,
                                 "start_time": {
-                                    "display": `${game.gameData.datetime.time} ${game.gameData.datetime.ampm}`,
+                                    "display": new Date(game.gameData.datetime.dateTime).toLocaleTimeString("en-US", { hour12: true, hour: "2-digit", minute: "2-digit" }),
+                                    // "display": `${game.gameData.datetime.time} ${game.gameData.datetime.ampm}`,
                                     ...game.gameData.datetime
                                 }
                             }
