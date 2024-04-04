@@ -10,11 +10,18 @@ router.get("/list", (req: Request, res: Response, next: NextFunction) => {
     // fetch today's games
     let apiString = `${mlbApi.url}/api/v1/schedule/?sportId=1&date=${today_date}`;
 
+    // keep track of which games were postponed, this will come in handy later...
+    let mapPostponed = {};
+
     axios.get(apiString)
         // the query will return a list of today's games
         .then((response) => {
             // return a promise to get the individual information of each game today
             return Promise.all(response.data.dates[0].games.map(game => {
+                // keep track of the game if it was postponed, since the data is unreliable on the game page
+                if (game.status.detailedState === "Postponed") {
+                    mapPostponed[game.gamePk] = true;
+                }
                 return axios.get(`${mlbApi.url}${game.link}`);
             }));
         })
@@ -41,6 +48,7 @@ router.get("/list", (req: Request, res: Response, next: NextFunction) => {
                     playersToQuery.push(game.liveData.linescore.defense.pitcher.link);
                     // 2. current runners
                     const bases = {
+                        "batter": false,
                         "first": false,
                         "second": false,
                         "third": false
@@ -74,11 +82,11 @@ router.get("/list", (req: Request, res: Response, next: NextFunction) => {
         // build objects with their information
         .then(([gameResponses, playerResponses]) => {
             let playerInfo = {
-                "-1": { "name": "TBD", "number": -1 }
+                "-1": { "id": -1, "name": "TBD", "number": -1 }
             };
             playerResponses.forEach(playerResponse => {
                 const player = playerResponse.data.people[0];
-                playerInfo[player.id] = { "name": player.fullName, "number": player.primaryNumber };
+                playerInfo[player.id] = { "id": player.id, "name": player.fullName, "number": player.primaryNumber };
             });
 
             res.json(gameResponses
@@ -117,6 +125,15 @@ router.get("/list", (req: Request, res: Response, next: NextFunction) => {
                         }
                     };
 
+                    // check if the game is postponed to a later date
+                    if (mapPostponed.hasOwnProperty(game.gamePk)) {
+                        gameObj.state.status.general = "Final";
+                        gameObj.state.status.detailed = "Postponed";
+                        gameObj.teams.away["pitcher"] = -1;
+                        gameObj.teams.home["pitcher"] = -1;
+
+                    }
+
                     // if the game is scheduled, fetch information on...
                     if (gameObj.state.status.general === "Preview") {
                         // 1. probable pitchers
@@ -136,12 +153,21 @@ router.get("/list", (req: Request, res: Response, next: NextFunction) => {
                         gameObj.teams.home["pitcher"] = game.liveData.linescore.isTopInning ? playerInfo[game.liveData.linescore.defense.pitcher.id] : playerInfo[game.liveData.linescore.offense.pitcher.id];
                         // 3. current runners
                         gameObj.state["diamond"] = {
+                            "batter": false,
                             "first": false,
                             "second": false,
                             "third": false
                         };
                         Object.keys(gameObj.state["diamond"]).forEach(baseName => {
                             if (game.liveData.linescore.offense.hasOwnProperty(baseName)) {
+                                // add a check for batter because the API will say 
+                                // 1. they're batting and also on base
+                                // 2. if there are 3 outs, the team is still at bat but the other team's batter is up
+                                if ((gameObj.state["diamond"].batter && gameObj.state["diamond"].batter.id === game.liveData.linescore.offense[baseName].id)
+                                || game.liveData.linescore.outs === 3) {
+                                    gameObj.state["diamond"].batter = false;
+                                }
+
                                 gameObj.state["diamond"][baseName] = playerInfo[game.liveData.linescore.offense[baseName].id];
                             }
                         });
