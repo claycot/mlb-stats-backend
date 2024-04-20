@@ -13,13 +13,14 @@ export default class Cache {
 
     private data: any = null; // the data! the most important part of the cache
     private date: Date = new Date(); // date when data was generated, this is important because we never want >30 seconds age
-    private maxAge: number = 30000; // age in milliseconds when a new read should refresh the cache
+    private maxAge: number = 30; // age in seconds when a new read should refresh the cache
 
     private locked: boolean = false; // lock controls whether or not the data is available to write or modify
     private lockDate: Date = new Date(); // tracks when the lock was created, so it can be unlocked if failure occurs
-    private maxLock: number = 15000; // duration in milliseconds that the cache can be locked
+    private maxLock: number = 15; // duration in seconds that the cache can be locked
 
     private valid: boolean = false; // boolean to hold data validity
+    private maxRetries: number = 25; // maximum number of retries on cache read
 
 
     // when the cache is constructed, assign it a name and a function for getting the data
@@ -30,6 +31,41 @@ export default class Cache {
         this.fileName = `cache-${name}.json`; // and its name on disk
 
         this.fetchData = fetchData; // copy the data fetching function to the cache
+    }
+
+    // redefine how the data is fetched
+    redefine(newFetchData: Function) {
+        if (this.isLocked()) {
+            throw new Error(`[${this.name}] Cache is locked. Please wait and try again`);
+        }
+        else {
+            this.lock();
+            this.fetchData = newFetchData;
+            this.invalidate();
+            this.unlock();
+        }
+    }
+
+    // read data from the cache, limiting the number of retries before failure
+    read(numRetries: number = 0) {
+        // if there is valid data in the cache object, return that
+        const validData = this.getValidData();
+        if (validData !== false) {
+            return Promise.resolve({ "metadata": { "timestamp": this.date }, "data": validData });
+        }
+        // otherwise, refresh the cache and read on completion
+        else if (numRetries <= this.maxRetries) {
+            return this.refresh()
+                .then(_ => {
+                    return this.read(numRetries + 1);
+                })
+                .catch(err => {
+                    throw err;
+                });
+        }
+        else {
+            throw new Error(`[${this.name}] Failed to read data from cache.`);
+        }
     }
 
     // refresh data into the cache, which means setting it in this.data and saving it in the cache file
@@ -105,41 +141,6 @@ export default class Cache {
     //     }
     // }
 
-    // redefine how the data is fetched
-    redefine(newFetchData: Function) {
-        if (this.isLocked()) {
-            throw new Error(`[${this.name}] Cache is locked. Please wait and try again`);
-        }
-        else {
-            this.lock();
-            this.fetchData = newFetchData;
-            this.invalidate();
-            this.unlock();
-        }
-    }
-
-    // read data from the cache, limiting the number of retries before failure
-    read(numRetries: number = 0) {
-        // if there is valid data in the cache object, return that
-        const validData = this.getValidData();
-        if (validData !== false) {
-            return Promise.resolve(validData);
-        }
-        // otherwise, refresh the cache and read on completion
-        else if (numRetries <= 25) {
-            return this.refresh()
-                .then(_ => {
-                    return this.read(numRetries + 1);
-                })
-                .catch(err => {
-                    throw err;
-                });
-        }
-        else {
-            throw new Error(`[${this.name}] Failed to read data from cache.`);
-        }
-    }
-
     // // load data into the object from a file
     // load() {
     //     // if the file is locked, don't modify the data
@@ -206,7 +207,7 @@ export default class Cache {
         this.date = new Date();
         this.valid = true;
     }
-    
+
     // invalidate the cache data, if parameters have changed or the fetch did something bad
     private invalidate() {
         this.valid = false;

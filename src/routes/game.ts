@@ -6,19 +6,25 @@ const router = express.Router();
 
 // list status of today's games
 router.get("/list", (req: Request, res: Response, next: NextFunction) => {
-    // make a string of the current date in the format MM/DD/YYYY
-    const todaysDate = new Date().toLocaleDateString("en-US");
+
 
     // caches["game-data-today"].redefine(() => getGames('3/31/2024'));
-    
+
     // get today's games
     caches["game-data-today"].read()
-        .then(data => {
-            res.json(data);
+        .then(({ metadata, data }) => {
+            res.json({ metadata, data });
+        })
+        .catch(err => {
+            next(err);
         });
 });
 
-export async function getGames(gameDate: string) {
+export async function getGames(gameDate?: string) {
+    // if date isn't provided, make a string of the current date in the format MM/DD/YYYY
+    if (gameDate === undefined) {
+        gameDate = new Date().toLocaleDateString("en-US");
+    }
     // keep track of which games were postponed, this will come in handy later...
     let mapPostponed = {};
 

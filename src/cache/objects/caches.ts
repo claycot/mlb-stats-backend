@@ -3,4 +3,4 @@ import { getGames } from "../../routes/game";
 
 export const caches = {};
 
-caches["game-data-today"] = new Cache("game-data-today", () => getGames(new Date().toLocaleDateString("en-US")));
+caches["game-data-today"] = new Cache("game-data-today", () => getGames());
