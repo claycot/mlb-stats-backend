@@ -4,7 +4,7 @@ const customCorsOptions = {
         if (allowedOrigins.indexOf(origin) !== -1) {
             callback(null, true);
         } else {
-            callback(new Error("Request from unauthorized origin"));
+            callback(new Error(`Request from unauthorized origin: ${origin}`));
         }
     },
 };
