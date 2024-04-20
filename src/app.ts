@@ -1,8 +1,13 @@
 import express, { NextFunction, Request, Response } from "express";
-import dotenv from "dotenv"; 
+import dotenv from "dotenv";
 import morgan from "morgan"
+import cors from "cors";
+import customCorsOptions from "./middleware/cors/cors.config";
+
 dotenv.config();
 const app = express();
+// enable cross-origin requests to domains in process.env.ALLOWED_ORIGINS
+app.use(cors(customCorsOptions));
 const port = process.env.PORT;
 
 app.use(morgan('dev'));
