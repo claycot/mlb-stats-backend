@@ -2,4 +2,4 @@
 .prettierrc.json
 node_modules
 dist
-src/cache
+src/cache/data
