@@ -111,7 +111,7 @@ export async function getGames(gameDate?: string) {
                     "general": game_2.gameData.status.abstractGameState,
                     "detailed": game_2.gameData.status.detailedState,
                     "start_time": {
-                        "display": new Date(game_2.gameData.datetime.dateTime).toLocaleTimeString("en-US", { timeZone: "America/Los_Angeles", hour12: true, hour: "2-digit", minute: "2-digit" }),
+                        "display": new Date(game_2.gameData.datetime.dateTime).toLocaleTimeString("en-US", { timeZone: "America/New_York", hour12: true, hour: "2-digit", minute: "2-digit" }),
                         // "display": `${game.gameData.datetime.time} ${game.gameData.datetime.ampm}`,
                         ...game_2.gameData.datetime
                     }
