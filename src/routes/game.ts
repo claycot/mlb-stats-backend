@@ -23,7 +23,7 @@ router.get("/list", (req: Request, res: Response, next: NextFunction) => {
 export async function getGames(gameDate?: string) {
     // if date isn't provided, make a string of the current date in the format MM/DD/YYYY
     if (gameDate === undefined) {
-        gameDate = new Date().toLocaleDateString("en-US" { timeZone: 'America/Los_Angeles' });
+        gameDate = new Date().toLocaleDateString("en-US", { timeZone: 'America/Los_Angeles' });
     }
     // keep track of which games were postponed, this will come in handy later...
     let mapPostponed = {};
