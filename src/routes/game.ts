@@ -160,8 +160,12 @@ export async function getGames(gameDate?: string) {
                 "top_bottom": game_2.liveData.linescore.inningHalf,
             };
             // 2. current pitchers
-            gameObj.teams.away["pitcher"] = game_2.liveData.linescore.isTopInning ? playerInfo[game_2.liveData.linescore.offense.pitcher.id] : playerInfo[game_2.liveData.linescore.defense.pitcher.id];
-            gameObj.teams.home["pitcher"] = game_2.liveData.linescore.isTopInning ? playerInfo[game_2.liveData.linescore.defense.pitcher.id] : playerInfo[game_2.liveData.linescore.offense.pitcher.id];
+            // have to check for 3 outs because it will swap the offense and defense players before setting the next inning,
+            // causing pitchers to swap teams (which is wrong!)
+            gameObj.teams.away["pitcher"] = game_2.liveData.linescore.isTopInning && game_2.liveData.linescore.outs !== 3 ?
+                playerInfo[game_2.liveData.linescore.offense.pitcher.id] : playerInfo[game_2.liveData.linescore.defense.pitcher.id];
+            gameObj.teams.home["pitcher"] = game_2.liveData.linescore.isTopInning && game_2.liveData.linescore.outs !== 3 ?
+                playerInfo[game_2.liveData.linescore.defense.pitcher.id] : playerInfo[game_2.liveData.linescore.offense.pitcher.id];
             // 3. current runners
             gameObj.state["diamond"] = {
                 "batter": false,
