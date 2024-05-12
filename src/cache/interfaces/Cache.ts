@@ -25,10 +25,11 @@ export default class Cache {
 
     // when the cache is constructed, assign it a name and a function for getting the data
     // note that the data won't actually be ready until refresh() completes
-    constructor(name: string, fetchData: Function) {
+    constructor(name: string, maxAge: number, fetchData: Function) {
         console.log(`[${name}] Cache creation in progress!`);
         this.name = name; // name the cache
         this.fileName = `cache-${name}.json`; // and its name on disk
+        this.maxAge = maxAge; // set the number of seconds before the cache refreshes
 
         this.fetchData = fetchData; // copy the data fetching function to the cache
     }
@@ -46,8 +47,13 @@ export default class Cache {
         }
     }
 
+    // set new max age, useful for when game state changes
+    setMaxAge(newMaxAge: number) {
+        this.maxAge = newMaxAge;
+    }
+
     // read data from the cache, limiting the number of retries before failure
-    read(numRetries: number = 0) {
+    read(numRetries: number = 0): Promise<any> {
         // if there is valid data in the cache object, return that
         const validData = this.getValidData();
         if (validData !== false) {
@@ -69,7 +75,7 @@ export default class Cache {
     }
 
     // refresh data into the cache, which means setting it in this.data and saving it in the cache file
-    private refresh() {
+    private refresh(): Promise<boolean> {
         // if the cache is locked and their lock lease hasn't run out, someone is modifying it
         if (this.isLocked()) {
             throw new Error(`[${this.name}] Cache is locked. Please wait and try again.`);

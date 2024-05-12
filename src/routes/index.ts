@@ -1,10 +1,10 @@
 import { Router } from "express";
 export const router = Router();
 
-import apiPitcherRouter from './pitcher';
-import apiHitterRouter from './hitter';
-import apiGameRouter from './game';
+import apiPitchersRouter from './pitchers';
+import apiHittersRouter from './hitters';
+import apiGamesRouter from './games';
 
-router.use('/pitcher', apiPitcherRouter);
-router.use('/hitter', apiHitterRouter);
-router.use('/game', apiGameRouter);
+router.use('/pitchers', apiPitchersRouter);
+router.use('/hitters', apiHittersRouter);
+router.use('/games', apiGamesRouter);
