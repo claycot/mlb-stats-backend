@@ -26,9 +26,18 @@ router.get("/list", (req: Request, res: Response, next: NextFunction) => {
     let gameDate: string | undefined = req.params.date;
 
     getGamesByDate(gameDate).then(games => {
-        res.json(games.map(game => {
-            return game.id;
-        }));
+        res.json({
+            metadata: {
+                timestamp: games.date
+            },
+            data: games.games.reduce((acc, game) => {
+                if (!acc.hasOwnProperty(game.status)) {
+                    acc[game.status] = [];
+                }
+                acc[game.status].push(game.id);
+                return acc
+            }, {})
+        });
     });
 });
 
@@ -89,7 +98,10 @@ export async function getGamesByDate(gameDate?: string) {
     const response = await axios.get(apiString);
 
     // the object returns nested info on the games, flatten the IDs and return
-    return response.data.dates[0].games.map(game => { return { id: game.gamePk, link: game.link }; });
+    return {
+        date: gameDate,
+        games: response.data.dates[0].games.map(game => { return { id: game.gamePk, link: game.link, status: game.status.abstractGameState }; })
+    };
 }
 
 // get information on a single game

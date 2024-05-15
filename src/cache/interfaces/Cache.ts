@@ -65,9 +65,6 @@ export default class Cache {
                 .then(_ => {
                     return this.read(numRetries + 1);
                 })
-                .catch(err => {
-                    throw err;
-                });
         }
         else {
             throw new Error(`[${this.name}] Failed to read data from cache.`);
@@ -78,7 +75,8 @@ export default class Cache {
     private refresh(): Promise<boolean> {
         // if the cache is locked and their lock lease hasn't run out, someone is modifying it
         if (this.isLocked()) {
-            throw new Error(`[${this.name}] Cache is locked. Please wait and try again.`);
+            return Promise.reject(false);
+            // throw new Error(`[${this.name}] Cache is locked. Please wait and try again.`);
         }
         // otherwise, save the data into the object and mirror it to file
         else {
