@@ -416,12 +416,7 @@ export async function getGames(gameDate?: string) {
             return 0;
         });
 
-    // transform the game array into a map from game ID to game data
-    return allGames.reduce((acc, obj) => {
-        acc[obj.id] = obj;
-        // delete acc[obj.id].id; // Remove the id property from the copied object
-        return acc;
-    }, {});
+    return allGames;
 }
 
 export default router;
