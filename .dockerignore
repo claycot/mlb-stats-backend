@@ -1,0 +1,5 @@
+.env
+.prettierrc.json
+node_modules
+dist
+src/cache/data
